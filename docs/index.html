@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ur-Latn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Rasta Faisalabad</title>
+<meta name="description" content="Faisalabad ka naqsha: kaunsa rasta band hai, kya toota hai, aur kya theek hua. Koi bhi report kar sakta hai.">
+<meta name="theme-color" content="#0E5E57">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230E5E57'/%3E%3Cpath d='M9 26 L16 5 L23 26' stroke='%23fff' stroke-width='3' fill='none' stroke-linejoin='round'/%3E%3Cpath d='M16 11v3M16 18v3' stroke='%23E2621A' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Figtree:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="brand">
+      <h1>Rasta <span>Faisalabad</span></h1>
+      <small id="who">Kya band hai, kya toota hai</small>
+    </div>
+    <div class="chips" role="toolbar" aria-label="Filter">
+      <button class="chip" data-f="all" aria-pressed="true">Sab <span class="n" id="n-all">0</span></button>
+      <button class="chip" data-f="closure" aria-pressed="false"><i style="background:var(--closure)"></i>Band / rukawat <span class="n" id="n-closure">0</span></button>
+      <button class="chip" data-f="broken" aria-pressed="false"><i style="background:var(--broken)"></i>Toota hua <span class="n" id="n-broken">0</span></button>
+      <button class="chip" data-f="fixed" aria-pressed="false"><i style="background:var(--fixed)"></i>Theek ho gaya <span class="n" id="n-fixed">0</span></button>
+    </div>
+  </header>
+  <div id="map">
+    <div class="banner" id="banner" hidden></div>
+    <div class="key" id="key"><i></i><span>Orange Line ki tameer wali sarkein (khabron ke mutabiq, andaza)</span><button class="x" id="key-x" aria-label="Note band karein">×</button></div>
+    <div id="picker" hidden><p>Naqsha hila kar nishaan ko sahi jagah pe rakhein</p><div class="pin" id="picker-pin"><b>+</b></div></div>
+    <div class="fabs" id="fabs">
+      <button class="btn ghost" id="btn-list">Fehrist</button>
+      <button class="btn primary" id="btn-report" disabled>+ Report karein</button>
+      <div class="zoom">
+        <button class="btn ghost" id="locate" aria-label="Meri jagah" title="Meri jagah">◎</button>
+        <button class="btn ghost" id="zin" aria-label="Zoom in">+</button>
+        <button class="btn ghost" id="zout" aria-label="Zoom out">−</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="sheet" hidden role="dialog" aria-modal="false" aria-labelledby="sheet-title">
+  <div class="sheet-h"><h2 id="sheet-title"></h2><button class="x" id="sheet-x" aria-label="Band karein">×</button></div>
+  <div class="sheet-b" id="sheet-b"></div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+<script src="orange.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

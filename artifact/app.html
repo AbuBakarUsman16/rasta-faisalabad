@@ -1,0 +1,564 @@
+<title>Rasta Faisalabad</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+:root{
+  --bg:#E7ECE9; --panel:#FFFFFF; --panel-2:#F3F6F4; --ink:#15201B; --muted:#56645D; --line:#D2DAD5;
+  --road0:#7F8C85; --road1:#9DA8A2; --road2:#BCC5C0; --canal:#6F9FC0; --rail:#8D8278; --label:#3E4A44;
+  --accent:#0E5E57; --accent-ink:#FFFFFF; --closure:#E2621A; --broken:#C2332A; --fixed:#2C8A55;
+  --shadow:0 6px 24px rgba(20,32,27,.16); --radius:14px;
+  --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:"Figtree",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0F1513; --panel:#18211E; --panel-2:#1F2A26; --ink:#E4EBE7; --muted:#98A69F; --line:#2B3833;
+    --road0:#6A7771; --road1:#515D58; --road2:#3B4642; --canal:#3D6D8C; --rail:#6C645D; --label:#AEBAB4;
+    --accent:#3CB3A3; --accent-ink:#04201C; --closure:#F07A35; --broken:#E25A50; --fixed:#46B27A;
+    --shadow:0 6px 24px rgba(0,0,0,.45);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0F1513; --panel:#18211E; --panel-2:#1F2A26; --ink:#E4EBE7; --muted:#98A69F; --line:#2B3833;
+  --road0:#6A7771; --road1:#515D58; --road2:#3B4642; --canal:#3D6D8C; --rail:#6C645D; --label:#AEBAB4;
+  --accent:#3CB3A3; --accent-ink:#04201C; --closure:#F07A35; --broken:#E25A50; --fixed:#46B27A;
+  --shadow:0 6px 24px rgba(0,0,0,.45);
+}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;overflow:hidden}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* ---- leaflet: sirf zaroori CSS (stylesheet CDN se nahi aa sakti) ---- */
+.leaflet-pane,.leaflet-marker-icon,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-layer{position:absolute;left:0;top:0}
+.leaflet-container{overflow:hidden;-webkit-tap-highlight-color:transparent;background:var(--bg);outline:0}
+.leaflet-container.leaflet-touch-drag{touch-action:none}
+.leaflet-container.leaflet-touch-drag.leaflet-touch-zoom{touch-action:none}
+.leaflet-pane{z-index:400}.leaflet-overlay-pane{z-index:400}.leaflet-marker-pane{z-index:600}
+.leaflet-tooltip-pane{z-index:650}.leaflet-popup-pane{z-index:700}
+.leaflet-map-pane canvas{z-index:100}.leaflet-map-pane svg{z-index:200}
+.leaflet-zoom-animated{transform-origin:0 0}
+.leaflet-zoom-anim .leaflet-zoom-animated{transition:transform .25s cubic-bezier(0,0,.25,1)}
+.leaflet-zoom-anim .leaflet-zoom-hide{visibility:hidden}
+.leaflet-interactive{cursor:pointer}
+.leaflet-grab{cursor:grab}.leaflet-dragging .leaflet-grab{cursor:grabbing}
+.leaflet-marker-icon{display:block}
+.leaflet-marker-icon.leaflet-interactive,.leaflet-pane>svg path.leaflet-interactive{pointer-events:auto}
+.leaflet-top,.leaflet-bottom{position:absolute;z-index:1000;pointer-events:none}
+.leaflet-bottom{bottom:0}.leaflet-right{right:0}.leaflet-left{left:0}.leaflet-top{top:0}
+.leaflet-control{position:relative;z-index:800;pointer-events:auto;float:left;clear:both}
+.leaflet-right .leaflet-control{float:right}
+.leaflet-control-attribution{font-size:10px;padding:2px 6px;background:color-mix(in srgb,var(--panel) 80%,transparent);color:var(--muted)}
+.leaflet-control-attribution a{color:var(--muted)}
+.leaflet-tooltip{position:absolute;pointer-events:none;white-space:nowrap}
+.rd-label{font:600 11px/1 var(--display);letter-spacing:.04em;text-transform:uppercase;color:var(--label);
+  text-shadow:0 0 3px var(--bg),0 0 3px var(--bg),0 0 3px var(--bg)}
+.lm-label{font:700 12px/1 var(--display);letter-spacing:.06em;text-transform:uppercase;color:var(--ink);
+  background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:4px 6px;box-shadow:var(--shadow)}
+
+/* ---- pins ---- */
+.pin{width:30px;height:30px;border-radius:50% 50% 50% 4px;transform:rotate(-45deg);display:grid;place-items:center;
+  border:2px solid var(--panel);box-shadow:0 2px 8px rgba(0,0,0,.35)}
+.pin b{transform:rotate(45deg);font:700 13px/1 var(--display);color:#fff;letter-spacing:.02em}
+.pin.closure{background:var(--closure)}.pin.broken{background:var(--broken)}.pin.fixed{background:var(--fixed)}
+.pin.sel{outline:3px solid var(--ink);outline-offset:1px}
+
+/* ---- app shell ---- */
+#app{position:fixed;inset:0;display:grid;grid-template-rows:auto minmax(0,1fr);grid-template-columns:minmax(0,1fr)}
+header{padding:10px 16px 8px;padding-top:calc(10px + env(safe-area-inset-top,0px));background:var(--panel);
+  border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:8px;z-index:1100;min-width:0}
+.brand{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.brand h1{margin:0;font:700 24px/1 var(--display);letter-spacing:.02em;text-transform:uppercase}
+.brand h1 span{color:var(--accent)}
+.brand small{color:var(--muted);font-size:12px;text-align:right}
+.chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;min-width:0}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;border:1px solid var(--line);background:var(--panel-2);border-radius:999px;padding:6px 12px;
+  font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.chip i{width:9px;height:9px;border-radius:50%;display:inline-block}
+.chip .n{font:700 14px/1 var(--display);color:var(--muted);font-variant-numeric:tabular-nums}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.chip[aria-pressed="true"] .n{color:var(--panel)}
+#map{position:relative;min-height:0;min-width:0}
+.banner{position:absolute;left:16px;right:16px;top:10px;z-index:1050;background:var(--panel);border:1px solid var(--line);
+  border-radius:10px;padding:8px 12px;font-size:13px;color:var(--muted);box-shadow:var(--shadow)}
+.fabs{position:absolute;left:16px;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:1050;
+  display:flex;gap:10px;justify-content:space-between;align-items:flex-end;pointer-events:none}
+.fabs>*{pointer-events:auto}
+.btn{border:0;border-radius:12px;padding:12px 18px;font-weight:700;font-size:15px;display:inline-flex;align-items:center;gap:8px;justify-content:center}
+.btn.primary{background:var(--accent);color:var(--accent-ink);box-shadow:var(--shadow)}
+.btn.ghost{background:var(--panel);color:var(--ink);border:1px solid var(--line);box-shadow:var(--shadow)}
+.btn.quiet{background:var(--panel-2);color:var(--ink);border:1px solid var(--line)}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.zoom{display:flex;flex-direction:column;gap:6px}
+.zoom .btn{width:44px;height:44px;padding:0;font-size:20px}
+.legend{display:flex;gap:10px;font-size:12px;color:var(--muted);flex-wrap:wrap}
+.legend span{display:flex;align-items:center;gap:5px}
+.legend i{width:14px;height:0;border-top:3px dashed var(--closure)}
+
+.key{position:absolute;left:16px;top:10px;z-index:1040;max-width:calc(100% - 32px);display:flex;align-items:center;gap:8px;
+  background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 6px 6px 10px;font-size:12px;color:var(--muted);box-shadow:var(--shadow)}
+.key i{flex:none;width:22px;height:6px;border-radius:3px;background:var(--closure);opacity:.55}
+.key .x{width:26px;height:26px;font-size:15px}
+/* ---- center picker ---- */
+#picker{position:absolute;inset:0;z-index:1040;pointer-events:none;display:grid;place-items:center}
+#picker .pin{margin-top:-34px}
+#picker p{position:absolute;top:10px;left:16px;right:16px;margin:0;text-align:center;background:var(--ink);color:var(--panel);
+  padding:10px 12px;border-radius:10px;font-weight:600;font-size:14px}
+
+/* ---- bottom sheet ---- */
+#sheet{position:fixed;left:0;right:0;bottom:0;z-index:1200;background:var(--panel);border-radius:18px 18px 0 0;
+  box-shadow:0 -8px 30px rgba(0,0,0,.22);max-height:78%;display:flex;flex-direction:column;
+  padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (min-width:860px){
+  #sheet{left:auto;right:16px;bottom:16px;top:auto;width:400px;border-radius:18px;max-height:calc(100% - 140px)}
+}
+.sheet-h{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:14px 16px 10px;border-bottom:1px solid var(--line)}
+.sheet-h h2{margin:0;font:700 20px/1.1 var(--display);letter-spacing:.02em;text-transform:uppercase;text-wrap:balance}
+.x{border:0;background:var(--panel-2);width:34px;height:34px;border-radius:50%;font-size:18px;flex:none}
+.sheet-b{padding:14px 16px 18px;overflow:auto;display:flex;flex-direction:column;gap:14px}
+.label{font:600 12px/1 var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.opt{border:1px solid var(--line);background:var(--panel-2);border-radius:12px;padding:10px 12px;text-align:left;
+  display:flex;flex-direction:column;gap:3px;min-height:58px}
+.opt strong{font-size:14px}
+.opt span{font-size:12px;color:var(--muted)}
+.opt[aria-pressed="true"]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.kind{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.kind .opt{border-left:5px solid var(--c)}
+textarea{width:100%;box-sizing:border-box;border:1px solid var(--line);background:var(--panel-2);border-radius:12px;padding:10px 12px;min-height:74px;resize:vertical}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.muted{color:var(--muted);font-size:13px}
+.err{color:var(--broken);font-size:13px;font-weight:600}
+.photo-prev{max-width:100%;border-radius:10px;display:block}
+.file{display:inline-flex;align-items:center;gap:8px;border:1px dashed var(--line);border-radius:12px;padding:10px 14px;font-weight:600;cursor:pointer}
+.file input{position:absolute;opacity:0;width:1px;height:1px}
+.status{display:inline-flex;align-items:center;gap:6px;font:700 13px/1 var(--display);letter-spacing:.06em;text-transform:uppercase;
+  padding:6px 9px;border-radius:6px;color:#fff;align-self:flex-start}
+.status.closure{background:var(--closure)}.status.broken{background:var(--broken)}.status.fixed{background:var(--fixed)}
+.age{font:700 34px/1 var(--display);font-variant-numeric:tabular-nums}
+.age small{font-size:15px;color:var(--muted);font-weight:600;margin-left:4px}
+.votes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.vote{border:1px solid var(--line);background:var(--panel-2);border-radius:12px;padding:10px;display:flex;justify-content:space-between;align-items:center;gap:6px;font-weight:600;font-size:14px;text-align:left}
+.vote .n{font:700 20px/1 var(--display);font-variant-numeric:tabular-nums}
+.vote[aria-pressed="true"]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.vote.wide{grid-column:1/-1}
+.list{display:flex;flex-direction:column}
+.item{display:grid;grid-template-columns:14px minmax(0,1fr) auto;gap:10px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line);
+  background:none;border-left:0;border-right:0;border-top:0;text-align:left;width:100%}
+.item i{width:12px;height:12px;border-radius:50%}
+.item strong{display:block;font-size:14px}
+.item span{font-size:12px;color:var(--muted);display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item b{font:700 16px/1 var(--display);font-variant-numeric:tabular-nums;color:var(--muted);text-align:right}
+.toast{position:fixed;left:50%;bottom:calc(90px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:1300;
+  background:var(--ink);color:var(--panel);padding:10px 16px;border-radius:10px;font-weight:600;font-size:14px;max-width:calc(100% - 32px)}
+@media (prefers-reduced-motion:reduce){.leaflet-zoom-anim .leaflet-zoom-animated{transition:none}}
+</style>
+
+<div id="app">
+  <header>
+    <div class="brand">
+      <h1>Rasta <span>Faisalabad</span></h1>
+      <small id="who">Kya band hai, kya toota hai</small>
+    </div>
+    <div class="chips" role="toolbar" aria-label="Filter">
+      <button class="chip" data-f="all" aria-pressed="true">Sab <span class="n" id="n-all">0</span></button>
+      <button class="chip" data-f="closure" aria-pressed="false"><i style="background:var(--closure)"></i>Band / rukawat <span class="n" id="n-closure">0</span></button>
+      <button class="chip" data-f="broken" aria-pressed="false"><i style="background:var(--broken)"></i>Toota hua <span class="n" id="n-broken">0</span></button>
+      <button class="chip" data-f="fixed" aria-pressed="false"><i style="background:var(--fixed)"></i>Theek ho gaya <span class="n" id="n-fixed">0</span></button>
+    </div>
+  </header>
+  <div id="map">
+    <div class="banner" id="banner" hidden></div>
+    <div class="key" id="key"><i></i><span>Orange Line ki tameer wali sarkein (khabron ke mutabiq, andaza)</span><button class="x" id="key-x" aria-label="Note band karein">×</button></div>
+    <div id="picker" hidden><p>Naqsha hila kar nishaan ko sahi jagah pe rakhein</p><div class="pin" id="picker-pin"><b>+</b></div></div>
+    <div class="fabs" id="fabs">
+      <button class="btn ghost" id="btn-list">Fehrist</button>
+      <button class="btn primary" id="btn-report">+ Report karein</button>
+      <div class="zoom"><button class="btn ghost" id="zin" aria-label="Zoom in">+</button><button class="btn ghost" id="zout" aria-label="Zoom out">−</button></div>
+    </div>
+  </div>
+</div>
+<div id="sheet" hidden role="dialog" aria-modal="false" aria-labelledby="sheet-title">
+  <div class="sheet-h"><h2 id="sheet-title"></h2><button class="x" id="sheet-x" aria-label="Band karein">×</button></div>
+  <div class="sheet-b" id="sheet-b"></div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script>
+//@@FSD@@
+</script>
+<script>
+(() => {
+"use strict";
+
+/* ---------- qismein ---------- */
+const CATS = {
+  closure: [
+    {id:"khudai", t:"Khudai / tameer", d:"Orange Line, pipe, cable", g:"K"},
+    {id:"paani", t:"Barish ka paani", d:"Sarak ya underpass doobi", g:"P"},
+    {id:"band", t:"Rasta band", d:"Container, dharna, VIP", g:"B"},
+    {id:"jam", t:"Shadeed rush", d:"Gaariyan ruki hui", g:"J"},
+    {id:"hadsa", t:"Hadsa", d:"Accident, gaari kharab", g:"H"},
+  ],
+  broken: [
+    {id:"gaddha", t:"Gaddha", d:"Sarak mein gaddha", g:"G"},
+    {id:"gutter", t:"Khula gutter", d:"Dhakkan ghayab", g:"O"},
+    {id:"sewer", t:"Gutter ubal raha", d:"Ganda paani sarak pe", g:"S"},
+    {id:"light", t:"Street light band", d:"Andhera", g:"L"},
+    {id:"kachra", t:"Kachra", d:"Dher laga hai", g:"C"},
+    {id:"aur", t:"Kuch aur", d:"Note mein likhein", g:"?"},
+  ],
+};
+const CAT = {}; for (const k in CATS) for (const c of CATS[k]) CAT[c.id] = {...c, kind:k};
+const DURS = [
+  {id:"2h", t:"2 ghante", ms:2*3600e3},
+  {id:"6h", t:"6 ghante", ms:6*3600e3},
+  {id:"day", t:"Aaj raat tak", ms:null},
+  {id:"3d", t:"3 din", ms:3*86400e3},
+];
+const DAY = 86400e3;
+
+/* ---------- chhote helpers ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const cnt = o => o ? Object.values(o).filter(v => v).length : 0;
+function ago(ms){
+  const m = Math.round((Date.now()-ms)/60000);
+  if (m < 1) return "abhi abhi";
+  if (m < 60) return m + " minute pehle";
+  const h = Math.round(m/60); if (h < 24) return h + " ghante pehle";
+  const d = Math.round(h/24); return d + " din pehle";
+}
+function left(ms){
+  const m = Math.round((ms-Date.now())/60000);
+  if (m < 60) return m + " minute";
+  const h = Math.round(m/60); if (h < 48) return h + " ghante";
+  return Math.round(h/24) + " din";
+}
+function toast(t){ const el=$("#toast"); el.textContent=t; el.hidden=false; clearTimeout(toast.t); toast.t=setTimeout(()=>el.hidden=true,2600); }
+function cssVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function dist(a,b){ // metres
+  const R=6371e3, r=Math.PI/180, dLat=(b.lat-a.lat)*r, dLng=(b.lng-a.lng)*r;
+  const x=Math.sin(dLat/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dLng/2)**2;
+  return 2*R*Math.asin(Math.sqrt(x));
+}
+
+/* ---------- report ki haalat ---------- */
+// band rasta: waqt guzarne pe ya 2 logon ke "khul gaya" kehne pe gayab
+// toota hua: 2 logon ya reporter ke "theek ho gaya" kehne pe hara; 7 din baad naqshe se hat jata hai
+function state(r){
+  const v = r.votes || {};
+  if (r.kind === "closure") {
+    const cleared = cnt(v.cleared) >= 2 || (v.cleared && v.cleared[r.by]);
+    if (cleared || Date.now() > r.expiresAt) return "gone";
+    return "closure";
+  }
+  const fixedN = cnt(v.fixed), stillN = cnt(v.still);
+  const fixed = (fixedN >= 2 && fixedN > stillN) || (v.fixed && v.fixed[r.by] && fixedN > stillN);
+  if (!fixed) return "broken";
+  const fixedAt = Math.max(...Object.values(v.fixed).filter(Boolean));
+  return Date.now() - fixedAt > 7*DAY ? "fixed-old" : "fixed";
+}
+
+/* ---------- store: page ka database, na mile to sirf is browser tak ---------- */
+const store = {
+  mode: "loading", uid: null, canWrite: false, db: null, list: [], local: [],
+  listeners: [],
+  onChange(f){ this.listeners.push(f); },
+  emit(){ for (const f of this.listeners) f(this.list); },
+  async init(){
+    const use = (n) => (window.claude && window.claude.use) ? window.claude.use(n).catch(() => null) : Promise.resolve(null);
+    const [db, user] = await Promise.all([use("db"), use("user")]);
+    if (!db) { this.mode = "local"; this.canWrite = true; this.uid = "me"; this.emit(); return; }
+    this.db = db; this.mode = "db";
+    if (user) {
+      try { this.uid = await user.id(); } catch { this.uid = null; }
+      let can = null; try { can = await user.can("data.write"); } catch {}
+      this.canWrite = can !== false && !!this.uid;
+    }
+    db.collection("reports").orderBy("createdAt", "desc").limit(800).onSnapshot(
+      snap => { this.list = snap.docs.map(d => ({id:d.id, ...d.data()})); this.emit(); },
+      e => { banner("Reports load nahi ho sakin (" + e.code + "). Page reload karein."); }
+    );
+  },
+  async add(data){
+    if (this.mode === "local") { this.local.unshift({id:"l"+Date.now(), ...data}); this.list = this.local.slice(); this.emit(); return; }
+    await this.db.collection("reports").add(data);
+  },
+  async vote(r, key, on){
+    const val = on ? Date.now() : 0;
+    if (this.mode === "local") { r.votes = r.votes || {}; r.votes[key] = {...(r.votes[key]||{}), [this.uid]: val}; this.list = this.local.slice(); this.emit(); return; }
+    await this.db.doc("reports/" + r.id).update({votes: {[key]: {[this.uid]: val}}});
+  },
+  async remove(r){
+    if (this.mode === "local") { this.local = this.local.filter(x => x.id !== r.id); this.list = this.local.slice(); this.emit(); return; }
+    await this.db.doc("reports/" + r.id).delete();
+  },
+};
+function writeError(e){
+  if (e && e.code === "invalid_argument") { store.canWrite = false; render(); return "Aap is page pe sirf dekh sakte hain. Report karne ke liye owner se Contributor access mangein."; }
+  if (e && e.code === "quota_exceeded") return "Reports ki had poori ho gayi hai. Purani reports hatani hongi.";
+  return "Save nahi hua. Dobara koshish karein.";
+}
+function banner(t){ const b=$("#banner"); b.textContent=t; b.hidden=!t; }
+
+/* ---------- naqsha ---------- */
+const map = L.map("map", {zoomControl:false, attributionControl:true, minZoom:11, maxZoom:18, zoomSnap:0.5,
+  maxBounds:[[31.25,72.85],[31.60,73.33]], maxBoundsViscosity:0.8});
+map.attributionControl.setPrefix(false).addAttribution('Sarkein: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a>');
+map.fitBounds([[31.37,73.00],[31.47,73.16]]);
+
+const roadCanvas = L.canvas({padding:0.3});
+const roadLayer = L.layerGroup().addTo(map), labelLayer = L.layerGroup(), pinLayer = L.layerGroup().addTo(map);
+function decode(flat){ const out=[]; for (let i=0;i<flat.length;i+=2) out.push([31+flat[i]/1e5, 72+flat[i+1]/1e5]); return out; }
+const ROADS = FSD.w.map(([c, ni, orange, flat]) => ({c, name: ni >= 0 ? FSD.n[ni] : "", orange, pts: decode(flat)}));
+
+function drawRoads(){
+  roadLayer.clearLayers(); labelLayer.clearLayers();
+  const z = map.getZoom();
+  const col = [cssVar("--road0"), cssVar("--road1"), cssVar("--road2"), cssVar("--canal"), cssVar("--rail")];
+  const w = [z>=14?5:3.2, z>=14?3.6:2.2, z>=14?2.4:1.2, 2, 1.6];
+  const order = [3,4,2,1,0];
+  for (const c of order) for (const r of ROADS) if (r.c === c) {
+    if (r.orange) L.polyline(r.pts, {renderer:roadCanvas, color:cssVar("--closure"), weight:w[c]+7, opacity:.28, interactive:false}).addTo(roadLayer);
+    L.polyline(r.pts, {renderer:roadCanvas, color:col[c], weight:w[c], dashArray:c===4?"6 5":null, interactive:false, lineCap:"round"}).addTo(roadLayer);
+  }
+  // har bari sarak ka naam aik dafa, us ke sab se lambe hisse ke beech
+  const best = {};
+  for (const r of ROADS) if (r.name && r.c <= 1) { const len=r.pts.length; if (!best[r.name] || len > best[r.name].pts.length) best[r.name]=r; }
+  for (const n in best) { const p = best[n].pts; L.tooltip({permanent:true, direction:"center", className:"rd-label", interactive:false})
+    .setLatLng(p[Math.floor(p.length/2)]).setContent(esc(n)).addTo(labelLayer); }
+  L.tooltip({permanent:true, direction:"top", className:"lm-label", offset:[0,-4]}).setLatLng(FSD.clock).setContent("Ghanta Ghar").addTo(roadLayer);
+  if (z >= 14) labelLayer.addTo(map); else labelLayer.remove();
+}
+let lastZ = -1;
+map.on("zoomend", () => { const z = map.getZoom(); if ((z>=14) !== (lastZ>=14)) drawRoads(); lastZ = z; });
+lastZ = map.getZoom(); drawRoads();
+const mq = matchMedia("(prefers-color-scheme: dark)");
+mq.addEventListener?.("change", drawRoads);
+new MutationObserver(drawRoads).observe(document.documentElement, {attributes:true, attributeFilter:["data-theme"]});
+
+try { if (localStorage.getItem("rf.keyHidden")) $("#key").hidden = true; } catch {}
+$("#key-x").onclick = () => { $("#key").hidden = true; try { localStorage.setItem("rf.keyHidden", "1"); } catch {} };
+$("#zin").onclick = () => map.zoomIn();
+$("#zout").onclick = () => map.zoomOut();
+
+/* ---------- pins aur fehrist ---------- */
+let filter = "all", selected = null;
+const markers = new Map();
+function visible(r){
+  const s = state(r);
+  if (s === "gone" || s === "fixed-old") return filter === "fixed" && s === "fixed-old";
+  if (filter === "all") return true;
+  return s === filter;
+}
+function pinHtml(r, s){ const g = (CAT[r.cat] || {g:"?"}).g; return `<div class="pin ${s}${selected===r.id?" sel":""}"><b>${g}</b></div>`; }
+function render(){
+  const list = store.list;
+  const counts = {closure:0, broken:0, fixed:0};
+  for (const r of list) { const s = state(r); if (s === "fixed-old") counts.fixed++; else if (counts[s] !== undefined) counts[s]++; }
+  $("#n-closure").textContent = counts.closure; $("#n-broken").textContent = counts.broken; $("#n-fixed").textContent = counts.fixed;
+  $("#n-all").textContent = counts.closure + counts.broken + counts.fixed;
+
+  const keep = new Set();
+  for (const r of list) {
+    if (!visible(r)) continue;
+    keep.add(r.id);
+    const s = state(r).replace("-old", "");
+    const html = pinHtml(r, s);
+    let m = markers.get(r.id);
+    if (!m) {
+      m = L.marker([r.lat, r.lng], {icon: L.divIcon({html, className:"", iconSize:[30,30], iconAnchor:[4,30]}), keyboard:true, title:(CAT[r.cat]||{}).t||""});
+      m.on("click", () => openReport(r.id));
+      m.addTo(pinLayer); m._html = html; markers.set(r.id, m);
+    } else if (m._html !== html) { m.setIcon(L.divIcon({html, className:"", iconSize:[30,30], iconAnchor:[4,30]})); m._html = html; }
+  }
+  for (const [id, m] of markers) if (!keep.has(id)) { m.remove(); markers.delete(id); }
+
+  $("#btn-report").disabled = !store.canWrite;
+  $("#who").textContent = store.mode === "local" ? "Demo: reports sirf is browser mein" : (store.canWrite ? "Kya band hai, kya toota hai" : "Sirf dekhne ki ijazat");
+  if (sheetView === "report" && selected) openReport(selected, true);
+  if (sheetView === "list") openList(true);
+}
+store.onChange(render);
+setInterval(render, 60000); // waqt guzarne se band raste khud gayab hon
+
+document.querySelectorAll(".chip").forEach(b => b.onclick = () => {
+  filter = b.dataset.f;
+  document.querySelectorAll(".chip").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+  render();
+});
+
+/* ---------- sheet ---------- */
+let sheetView = null;
+function openSheet(title, html, view){
+  sheetView = view; $("#sheet-title").textContent = title; $("#sheet-b").innerHTML = html; $("#sheet").hidden = false;
+}
+function closeSheet(){
+  $("#sheet").hidden = true; sheetView = null;
+  if (selected) { selected = null; render(); }
+  if (!$("#picker").hidden) endPick();
+}
+$("#sheet-x").onclick = closeSheet;
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("#sheet").hidden) closeSheet(); });
+
+function openReport(id, quiet){
+  const r = store.list.find(x => x.id === id);
+  if (!r) { if (sheetView === "report") closeSheet(); return; }
+  const first = selected !== id;
+  selected = id;
+  if (!quiet && first) render();
+  const s = state(r).replace("-old", ""), c = CAT[r.cat] || {t:"Masla", kind:r.kind}, v = r.votes || {}, me = store.uid;
+  const mine = k => !!(v[k] && me && v[k][me]);
+  const dis = store.canWrite ? "" : " disabled";
+  const days = Math.max(0, Math.floor((Date.now()-r.createdAt)/DAY));
+  let top;
+  if (s === "closure") top = `<span class="status closure">${esc(c.t)}</span><div class="muted">Report hua ${ago(r.createdAt)}. Naqshe se hatega ${left(r.expiresAt)} mein, ya 2 log "khul gaya" kahein.</div>`;
+  else if (s === "broken") top = `<span class="status broken">${esc(c.t)}</span><div class="age">${days}<small>${days===1?"din":"din"} se para hai</small></div><div class="muted">Report hua ${ago(r.createdAt)}</div>`;
+  else top = `<span class="status fixed">Theek ho gaya</span><div class="muted">${esc(c.t)}. Report hua ${ago(r.createdAt)}.</div>`;
+  const photo = r.photo ? `<img class="photo-prev" alt="Report ki photo" src="${esc(r.photo)}">` : "";
+  const note = r.note ? `<div>${esc(r.note)}</div>` : "";
+  const vb = (k, t) => `<button class="vote" data-v="${k}" aria-pressed="${mine(k)}"${dis}><span>${t}</span><span class="n">${cnt(v[k])}</span></button>`;
+  const votes = r.kind === "closure"
+    ? vb("still","Abhi bhi band hai") + vb("cleared","Khul gaya")
+    : `<button class="vote wide" data-v="metoo" aria-pressed="${mine("metoo")}"${dis}><span>Mera bhi yahi masla hai</span><span class="n">${cnt(v.metoo)+1}</span></button>` + vb("fixed","Theek ho gaya") + vb("still","Abhi bhi toota hai");
+  const del = r.by && r.by === me ? `<button class="btn quiet" id="del">Apni report hatayein</button>` : "";
+  openSheet(c.kind === "closure" ? "Rasta band / rukawat" : "Toota hua", `${top}${photo}${note}<div class="votes">${votes}</div><div class="row">${del}<span class="err" id="verr"></span></div>`, "report");
+  $("#sheet-b").querySelectorAll(".vote").forEach(b => b.onclick = async () => {
+    const k = b.dataset.v, on = !mine(k);
+    const other = {fixed:"still", still: r.kind==="closure" ? "cleared" : "fixed", cleared:"still"}[k];
+    try {
+      await store.vote(r, k, on);
+      if (on && other && mine(other)) await store.vote(r, other, false);
+      toast(on ? "Shukriya, darj ho gaya" : "Wapas le liya");
+    } catch (e) { $("#verr").textContent = writeError(e); }
+  });
+  const d = $("#del");
+  if (d) d.onclick = () => {
+    d.outerHTML = `<span class="muted">Pakka hatana hai?</span> <button class="btn quiet" id="del-yes">Haan, hatayein</button>`;
+    $("#del-yes").onclick = async () => { try { await store.remove(r); closeSheet(); toast("Report hata di"); } catch (e) { $("#verr").textContent = writeError(e); } };
+  };
+  if (!quiet && first) map.panTo([r.lat, r.lng], {animate:true});
+}
+
+function openList(quiet){
+  const now = store.list.map(r => ({r, s: state(r)}));
+  const broken = now.filter(x => x.s === "broken").sort((a,b) => a.r.createdAt - b.r.createdAt);
+  const closure = now.filter(x => x.s === "closure").sort((a,b) => b.r.createdAt - a.r.createdAt);
+  const fixed = now.filter(x => x.s.startsWith("fixed")).sort((a,b) => b.r.createdAt - a.r.createdAt).slice(0, 30);
+  const row = ({r, s}) => { const c = CAT[r.cat] || {t:"Masla"}; const col = s.startsWith("fixed") ? "var(--fixed)" : s==="closure" ? "var(--closure)" : "var(--broken)";
+    const right = s === "broken" ? Math.floor((Date.now()-r.createdAt)/DAY) + " din" : s === "closure" ? left(r.expiresAt) : "";
+    return `<button class="item" data-id="${esc(r.id)}"><i style="background:${col}"></i><div><strong>${esc(c.t)}</strong><span>${esc(r.note || ago(r.createdAt))}</span></div><b>${right}</b></button>`; };
+  const sec = (t, arr, empty) => `<div class="label">${t}</div>` + (arr.length ? `<div class="list">${arr.map(row).join("")}</div>` : `<div class="muted">${empty}</div>`);
+  const html = sec("Abhi band raste", closure, "Is waqt koi band rasta report nahi hua.")
+    + sec("Toote hue, sab se purane pehle", broken, "Koi toota hua masla report nahi hua.")
+    + sec("Haal hi mein theek hue", fixed, "Abhi tak koi masla theek nahi hua.");
+  openSheet("Fehrist", html, "list");
+  $("#sheet-b").querySelectorAll(".item").forEach(b => b.onclick = () => openReport(b.dataset.id));
+}
+$("#btn-list").onclick = () => sheetView === "list" ? closeSheet() : openList();
+
+/* ---------- report ka flow ---------- */
+let draft = null;
+$("#btn-report").onclick = () => { if (store.canWrite) startReport(); };
+function startReport(){
+  selected = null; render();
+  draft = {kind:null, cat:null, dur:"6h", note:"", photo:null};
+  stepKind();
+}
+function stepKind(){
+  const kinds = [["closure","Rasta band / rukawat","Khudai, paani, dharna, rush","var(--closure)"],["broken","Kuch toota hai","Gaddha, gutter, light, kachra","var(--broken)"]];
+  openSheet("Kya report karna hai?", `<div class="kind">${kinds.map(([k,t,d,c]) => `<button class="opt" data-k="${k}" style="--c:${c}"><strong>${t}</strong><span>${d}</span></button>`).join("")}</div>
+    <div class="muted">"Rasta band" kuch ghanton ya dinon baad khud naqshe se hat jata hai. "Kuch toota hai" tab tak rehta hai jab tak log na batayein ke theek ho gaya.</div>`, "new");
+  $("#sheet-b").querySelectorAll(".opt").forEach(b => b.onclick = () => { draft.kind = b.dataset.k; stepCat(); });
+}
+function stepCat(){
+  openSheet(draft.kind === "closure" ? "Kis qism ki rukawat?" : "Kya toota hai?",
+    `<div class="grid2">${CATS[draft.kind].map(c => `<button class="opt" data-c="${c.id}"><strong>${c.t}</strong><span>${c.d}</span></button>`).join("")}</div>
+     <button class="btn quiet" id="back">Wapas</button>`, "new");
+  $("#sheet-b").querySelectorAll(".opt").forEach(b => b.onclick = () => { draft.cat = b.dataset.c; startPick(); });
+  $("#back").onclick = stepKind;
+}
+function startPick(){
+  $("#picker").hidden = false; $("#fabs").hidden = true;
+  const pp = $("#picker-pin"); pp.className = "pin " + draft.kind; pp.firstElementChild.textContent = CAT[draft.cat].g;
+  if (map.getZoom() < 15) map.setZoom(15);
+  openSheet("Jagah chunein", `<div class="muted">Naqshe ko ungli se hilayein jab tak nishaan theek us jagah pe na aa jaye. Qareeb se dekhne ke liye zoom karein.</div>
+    <div id="dup"></div>
+    <div class="row"><button class="btn primary" id="here">Yahi jagah hai</button><button class="btn quiet" id="back">Wapas</button></div>`, "new");
+  $("#back").onclick = () => { endPick(); stepCat(); };
+  $("#here").onclick = () => { const c = map.getCenter(); draft.lat = +c.lat.toFixed(6); draft.lng = +c.lng.toFixed(6); endPick(); stepDetails(); };
+  checkDup(); map.on("moveend", checkDup);
+}
+function endPick(){ $("#picker").hidden = true; $("#fabs").hidden = false; map.off("moveend", checkDup); }
+function checkDup(){
+  // FixMyStreet wala qaida: aas paas pehle se report ho to naya banane ki bajaye us pe "mera bhi"
+  const el = $("#dup"); if (!el) return;
+  const c = map.getCenter();
+  const near = store.list.filter(r => r.cat === draft.cat && ["closure","broken"].includes(state(r)) && dist(c, r) < 80)
+    .sort((a,b) => dist(c,a) - dist(c,b))[0];
+  el.innerHTML = near ? `<div class="muted" style="color:var(--ink)"><strong>Yeh shayad pehle se report hai</strong> (${Math.round(dist(c, near))} meter door, ${ago(near.createdAt)}). Naya banane ki bajaye usi pe vote dein.</div>
+    <button class="btn quiet" id="open-dup" style="margin-top:8px">Pehli report dekhein</button>` : "";
+  const b = $("#open-dup"); if (b) b.onclick = () => { endPick(); openReport(near.id); };
+}
+function stepDetails(){
+  const c = CAT[draft.cat];
+  const durs = draft.kind === "closure" ? `<div class="label">Kab tak rahega (andaza)</div>
+    <div class="grid2" id="durs">${DURS.map(d => `<button class="opt" data-d="${d.id}" aria-pressed="${d.id===draft.dur}"><strong>${d.t}</strong></button>`).join("")}</div>` : "";
+  openSheet(c.t, `${durs}
+    <div class="label"><label for="note">Chhota sa note (chahein to)</label></div>
+    <textarea id="note" maxlength="280" placeholder="${draft.kind==="closure" ? "Maslan: Satiana Road pe Susan Road ki taraf jaane wali lane band" : "Maslan: gali ke mor pe bara gaddha, raat ko nazar nahi aata"}">${esc(draft.note)}</textarea>
+    <div class="label">Photo (chahein to)</div>
+    <label class="file"><input type="file" id="photo" accept="image/*" capture="environment">Photo lagayein</label>
+    <div id="pv"></div>
+    <div class="row"><button class="btn primary" id="send">Report bhejein</button><button class="btn quiet" id="back">Jagah badlein</button></div>
+    <div class="err" id="serr"></div>`, "new");
+  $("#sheet-b").querySelectorAll("#durs .opt").forEach(b => b.onclick = () => { draft.dur = b.dataset.d; $("#sheet-b").querySelectorAll("#durs .opt").forEach(x => x.setAttribute("aria-pressed", String(x===b))); });
+  $("#note").oninput = e => draft.note = e.target.value;
+  $("#photo").onchange = async e => {
+    const f = e.target.files[0]; if (!f) return;
+    $("#pv").innerHTML = `<div class="muted">Photo chhoti ki ja rahi hai…</div>`;
+    try { draft.photo = await shrink(f); $("#pv").innerHTML = `<img class="photo-prev" alt="Chuni hui photo" src="${draft.photo}">`; }
+    catch { draft.photo = null; $("#pv").innerHTML = `<div class="err">Yeh photo khul nahi saki. Koi aur photo chunein.</div>`; }
+  };
+  if (draft.photo) $("#pv").innerHTML = `<img class="photo-prev" alt="Chuni hui photo" src="${draft.photo}">`;
+  $("#back").onclick = startPick;
+  $("#send").onclick = async () => {
+    const btn = $("#send"); btn.disabled = true; btn.textContent = "Bhej rahe hain…";
+    const now = Date.now();
+    let exp = null;
+    if (draft.kind === "closure") { const d = DURS.find(x => x.id === draft.dur); if (d.ms) exp = now + d.ms; else { const e = new Date(); e.setHours(23,59,0,0); exp = e.getTime(); } }
+    const data = {kind:draft.kind, cat:draft.cat, lat:draft.lat, lng:draft.lng, note:draft.note.trim().slice(0,280), photo:draft.photo || null,
+      createdAt:now, expiresAt:exp, by:store.uid, votes:{}};
+    try { await store.add(data); draft = null; closeSheet(); toast("Report darj ho gayi. Shukriya!"); }
+    catch (e) { $("#serr").textContent = writeError(e); btn.disabled = false; btn.textContent = "Report bhejein"; }
+  };
+}
+// photo ko ~640px JPEG bana do taake database ke 256 KB wale document mein aa jaye
+function shrink(file){
+  return new Promise((res, rej) => {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => {
+      const k = Math.min(1, 640 / Math.max(img.width, img.height));
+      const cv = document.createElement("canvas"); cv.width = Math.round(img.width*k); cv.height = Math.round(img.height*k);
+      cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height); URL.revokeObjectURL(url);
+      let q = 0.7, out = cv.toDataURL("image/jpeg", q);
+      while (out.length > 170000 && q > 0.3) { q -= 0.1; out = cv.toDataURL("image/jpeg", q); }
+      out.length > 200000 ? rej(new Error("too big")) : res(out);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("bad image")); };
+    img.src = url;
+  });
+}
+
+/* ---------- shuru ---------- */
+render();
+store.init().then(render);
+})();
+</script>
