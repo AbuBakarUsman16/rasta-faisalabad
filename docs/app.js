@@ -160,6 +160,35 @@ $("#key-x").onclick = () => { $("#key").hidden = true; try { localStorage.setIte
 $("#zin").onclick = () => map.zoomIn();
 $("#zout").onclick = () => map.zoomOut();
 
+/* ---------- jagah chunne ka nishaan ----------
+   Phone pe neeche wali sheet naqshe ka nichla hissa dhak leti hai, is liye nishaan naqshe ke
+   NAZAR AANE WALE hisse ke beech mein rakha jata hai aur jagah bhi wahin se li jati hai. */
+function pickPoint(){
+  const m = $("#map").getBoundingClientRect(), sh = $("#sheet");
+  let w = m.width, bottom = m.bottom;
+  if (!sh.hidden) {
+    const r = sh.getBoundingClientRect();
+    if (r.left <= m.left + 20) bottom = Math.min(bottom, r.top);   // phone: sheet neeche
+    else w = Math.max(80, r.left - m.left);                        // desktop: sheet daayein
+  }
+  const top = m.top + 70; // upar wali hidayat ki patti ke neeche
+  return L.point(w / 2, Math.max(40, (top + bottom) / 2 - m.top));
+}
+function pickLatLng(){ return map.containerPointToLatLng(pickPoint()); }
+function placePicker(){
+  if ($("#picker").hidden) return;
+  const p = pickPoint(), pin = $("#picker-pin");
+  pin.style.left = (p.x - 4) + "px"; pin.style.top = (p.y - 30) + "px"; // markers jaisa anchor [4,30]
+}
+// ll ko nishaan ke neeche le aao (picking mein), warna seedha beech mein
+function centerAt(ll, zoom){
+  map.setView(ll, zoom, {animate:false});
+  if ($("#picker").hidden) return;
+  const p = pickPoint(), c = map.getSize().divideBy(2);
+  map.panBy([c.x - p.x, c.y - p.y], {animate:false});
+}
+addEventListener("resize", placePicker);
+
 /* ---------- GPS ---------- */
 const FSD_BOUNDS = L.latLngBounds([[31.20,72.80],[31.65,73.40]]);
 const UA = navigator.userAgent;
@@ -204,13 +233,40 @@ async function locate(zoom, quiet){
   const ll = [pos.coords.latitude, pos.coords.longitude];
   if (!FSD_BOUNDS.contains(ll)) { toast("Aap Faisalabad se bahar lag rahe hain. Naqsha hila kar jagah chunein."); return null; }
   if (meMarker) meMarker.setLatLng(ll); else meMarker = L.circleMarker(ll, {radius:8, color:"#fff", weight:3, fillColor:"#2F6FD6", fillOpacity:1, interactive:false}).addTo(map);
-  map.setView(ll, Math.max(map.getZoom(), zoom || 16));
+  centerAt(ll, Math.max(map.getZoom(), zoom || 16));
   return ll;
 }
 $("#locate").onclick = () => locate(16);
 
-/* ---------- search (OpenStreetMap Nominatim, sirf Faisalabad) ---------- */
-let searchMarker = null, lastSearch = 0;
+/* ---------- search: logon ki add ki hui jagahein + OpenStreetMap (Nominatim), sirf Faisalabad ---------- */
+// supabase/002_places.sql ke place_norm() jaisa: "Shaheed-e-Millat" = "shaheed e millat" = "shaheed millat"
+const norm = t => (" " + String(t).toLowerCase().replace(/[^a-z0-9؀-ۿ]+/g, " ") + " ")
+  .replace(/ (e|i|ul|ud) /g, " ").replace(/\s+/g, " ").trim();
+const STOP = new Set(["market","markeet","road","rd","chowk","bazar","bazaar","colony","town","street","gali","plaza","block","faisalabad","fsd","mor","more","stop","near","ke","ka","ki","pass"]);
+let searchMarker = null, lastSearch = 0, placesOk = true;
+
+async function searchPlaces(n, tokens){
+  if (!store.sb || !placesOk) return [];
+  let q = store.sb.from("places").select("id,name,lat,lng").limit(8);
+  q = tokens ? q.or(tokens.map(t => `norm.ilike.%${t}%`).join(",")) : q.ilike("norm", `%${n}%`);
+  const {data, error} = await q;
+  if (error) { if (error.code === "PGRST205" || error.code === "42P01") placesOk = false; return []; } // table abhi nahi bani
+  return data.map(p => ({name:p.name, sub:"Logon ki add ki hui jagah", lat:p.lat, lng:p.lng}));
+}
+async function searchOsm(q){
+  const url = "https://nominatim.openstreetmap.org/search?" + new URLSearchParams({q, format:"jsonv2", limit:"8", bounded:"1",
+    viewbox:"72.80,31.65,73.40,31.20", countrycodes:"pk", "accept-language":"en"});
+  const res = await fetch(url, {headers:{"Accept":"application/json"}});
+  return (await res.json()).map(r => { const parts = r.display_name.split(", ");
+    return {name:r.name || parts[0], sub:parts.slice(1, 4).join(", "), lat:+r.lat, lng:+r.lon}; });
+}
+function goTo(ll, picking){
+  centerAt(ll, 17);
+  if (picking) { const el = $("#dup"); if (el) el.innerHTML = ""; checkDup(); return; }
+  if (searchMarker) searchMarker.setLatLng(ll); else searchMarker = L.circleMarker(ll, {radius:9, color:"#fff", weight:3, fillColor:"#15201B", fillOpacity:.85, interactive:false}).addTo(map);
+  closeSheet();
+}
+
 $("#search").onsubmit = async e => {
   e.preventDefault();
   const q = $("#q").value.trim(); if (q.length < 2) return;
@@ -220,24 +276,73 @@ $("#search").onsubmit = async e => {
   const picking = !$("#picker").hidden;
   const show = html => { if (picking) { const el = $("#dup"); if (el) el.innerHTML = html; } else openSheet("Search", html, "search"); };
   show(`<div class="muted">"${esc(q)}" dhoond rahe hain…</div>`);
+  const n = norm(q);
+  let exact = [], near = [];
   try {
-    const url = "https://nominatim.openstreetmap.org/search?" + new URLSearchParams({q, format:"jsonv2", limit:"8", bounded:"1",
-      viewbox:"72.80,31.65,73.40,31.20", countrycodes:"pk", "accept-language":"en"});
-    const res = await fetch(url, {headers:{"Accept":"application/json"}});
-    const list = await res.json();
-    if (!list.length) { show(`<div class="muted">"${esc(q)}" Faisalabad mein nahi mila. Koi qareebi mashhoor jagah, sarak ya colony ka naam likh kar dekhein.</div>`); return; }
-    show(`<div class="list">${list.map((r, i) => { const parts = r.display_name.split(", "); const name = r.name || parts[0];
-      return `<button class="result" data-i="${i}"><strong>${esc(name)}</strong><span>${esc(parts.slice(1, 4).join(", "))}</span></button>`; }).join("")}</div>`);
-    document.querySelectorAll(".result").forEach(b => b.onclick = () => {
-      const r = list[+b.dataset.i], ll = [+r.lat, +r.lon];
-      map.setView(ll, 17);
-      if (!picking) {
-        if (searchMarker) searchMarker.setLatLng(ll); else searchMarker = L.circleMarker(ll, {radius:9, color:"#fff", weight:3, fillColor:"#15201B", fillOpacity:.85, interactive:false}).addTo(map);
-        closeSheet();
-      } else { const el = $("#dup"); if (el) el.innerHTML = ""; checkDup(); }
-    });
-  } catch { show(`<div class="err">Search nahi ho saki. Internet check kar ke dobara koshish karein.</div>`); }
+    const [mine, osm] = await Promise.all([searchPlaces(n), searchOsm(q).catch(() => null)]);
+    if (osm === null && !mine.length) { show(`<div class="err">Search nahi ho saki. Internet check kar ke dobara koshish karein.</div>`); return; }
+    exact = [...mine, ...(osm || [])];
+    if (!exact.length) {
+      // poora naam nahi mila: naam ke khaas alfaaz se milte julte nateeje
+      const tokens = n.split(" ").filter(t => t.length >= 4 && !STOP.has(t)).sort((a,b) => b.length - a.length).slice(0, 3);
+      if (tokens.length) {
+        await new Promise(r => setTimeout(r, 1100));
+        const [mine2, osm2] = await Promise.all([searchPlaces(n, tokens), searchOsm(tokens[0]).catch(() => [])]);
+        let osm3 = [];
+        if (tokens[1]) { await new Promise(r => setTimeout(r, 1100)); osm3 = await searchOsm(tokens[1]).catch(() => []); }
+        const seen = new Set();
+        // jis naam mein zyada alfaaz milen woh upar; har lafz se zyada se zyada 3
+        const score = r => tokens.filter(t => norm(r.name).includes(t)).length;
+        near = [...mine2, ...osm2.slice(0, 3), ...osm3.slice(0, 3)]
+          .filter(r => { const k = r.name + r.lat.toFixed(3); if (seen.has(k)) return false; seen.add(k); return true; })
+          .sort((a, b) => score(b) - score(a));
+      }
+    }
+  } catch { show(`<div class="err">Search nahi ho saki. Internet check kar ke dobara koshish karein.</div>`); return; }
+
+  const all = exact.length ? exact : near;
+  const rows = all.map((r, i) => `<button class="result" data-i="${i}"><strong>${esc(r.name)}</strong><span>${esc(r.sub)}</span></button>`).join("");
+  const head = exact.length ? "" : `<div class="muted">"${esc(q)}" naqshe pe darj nahi.${near.length ? " Yeh milte julte hain:" : ""}</div>`;
+  const add = store.canWrite && !picking && !exact.some(r => norm(r.name) === n)
+    ? `<button class="btn quiet" id="add-place">"${esc(q)}" naqshe pe add karein</button><div class="muted">Aap jagah pe pin laga dein, phir yeh sab ki search mein aayegi.</div>` : "";
+  // asal jagah na mile to "add karein" sab se upar; mile to neeche
+  show(exact.length ? head + `<div class="list">${rows}</div>` + add
+                    : head.replace(" Yeh milte julte hain:", "") + add + (rows ? `<div class="label">Milte julte naam</div><div class="list">${rows}</div>` : ""));
+  document.querySelectorAll(".result").forEach(b => b.onclick = () => { const r = all[+b.dataset.i]; goTo([r.lat, r.lng], picking); });
+  const ab = $("#add-place"); if (ab) ab.onclick = () => startAddPlace(q);
 };
+
+/* ---------- nayi jagah add karna ---------- */
+let placeName = null;
+function startAddPlace(name){
+  placeName = name;
+  $("#picker").hidden = false; $("#fabs").hidden = true;
+  const pp = $("#picker-pin"); pp.className = "pin place"; pp.firstElementChild.textContent = "+";
+  if (map.getZoom() < 15) map.setZoom(15);
+  openSheet("Nayi jagah", `<div class="label"><label for="pname">Jagah ka naam</label></div>
+    <input id="pname" class="field" maxlength="80" value="${esc(name)}">
+    <div class="muted">Naqsha hila kar nishaan ko us jagah ke beech mein rakhein. Qareeb se dekhne ke liye zoom karein.</div>
+    <div id="dup"></div>
+    <div class="row"><button class="btn primary" id="place-save">Yahi jagah hai</button><button class="btn quiet" id="place-gps">◎ Meri jagah</button></div>
+    <div class="err" id="perr"></div>`, "place");
+  $("#place-gps").onclick = () => locate(17);
+  $("#place-save").onclick = async () => {
+    const nm = $("#pname").value.trim();
+    if (nm.length < 3) { $("#perr").textContent = "Naam kam az kam 3 huroof ka ho."; return; }
+    const c = pickLatLng(), btn = $("#place-save");
+    btn.disabled = true; btn.textContent = "Save ho raha hai…";
+    const {error} = await store.sb.from("places").insert({name:nm, lat:+c.lat.toFixed(6), lng:+c.lng.toFixed(6)});
+    if (error) {
+      btn.disabled = false; btn.textContent = "Yahi jagah hai";
+      $("#perr").textContent = String(error.message).includes("rate_limit") ? "Aaj ke liye jagahein add karne ki had poori ho gayi." :
+        (error.code === "PGRST205" || error.code === "42P01") ? "Jagahein add karna abhi chalu nahi hua (database setup baqi hai)." : "Save nahi hua. Dobara koshish karein.";
+      return;
+    }
+    endPick(); placeName = null; closeSheet();
+    if (searchMarker) searchMarker.setLatLng(c); else searchMarker = L.circleMarker(c, {radius:9, color:"#fff", weight:3, fillColor:"#15201B", fillOpacity:.85, interactive:false}).addTo(map);
+    toast(`"${nm}" add ho gayi. Shukriya!`);
+  };
+}
 
 /* ---------- pins aur fehrist ---------- */
 let filter = "all", selected = null, sheetView = null;
@@ -283,7 +388,7 @@ document.querySelectorAll(".chip").forEach(b => b.onclick = () => {
 });
 
 /* ---------- sheet ---------- */
-function openSheet(title, html, view){ sheetView = view; $("#sheet-title").textContent = title; $("#sheet-b").innerHTML = html; $("#sheet").hidden = false; }
+function openSheet(title, html, view){ sheetView = view; $("#sheet-title").textContent = title; $("#sheet-b").innerHTML = html; $("#sheet").hidden = false; placePicker(); }
 function closeSheet(){
   $("#sheet").hidden = true; sheetView = null;
   if (!$("#picker").hidden) endPick();
@@ -380,7 +485,7 @@ function startPick(useGps){
     <div class="row"><button class="btn primary" id="here">Yahi jagah hai</button><button class="btn quiet" id="gps">◎ Meri jagah</button><button class="btn quiet" id="back">Wapas</button></div>`, "new");
   $("#back").onclick = () => { endPick(); stepCat(); };
   $("#gps").onclick = () => locate(17);
-  $("#here").onclick = () => { const c = map.getCenter(); draft.lat = +c.lat.toFixed(6); draft.lng = +c.lng.toFixed(6); endPick(); stepDetails(); };
+  $("#here").onclick = () => { const c = pickLatLng(); draft.lat = +c.lat.toFixed(6); draft.lng = +c.lng.toFixed(6); endPick(); stepDetails(); };
   checkDup(); map.on("moveend", checkDup);
   if (useGps) locate(17, true); // aksar log wahin khare hote hain; na mile to chup chaap naqsha/search
 }
@@ -388,7 +493,7 @@ function endPick(){ $("#picker").hidden = true; $("#fabs").hidden = false; map.o
 function checkDup(){
   // FixMyStreet wala qaida: aas paas pehle se report ho to naya banane ki bajaye us pe vote
   const el = $("#dup"); if (!el || !draft) return;
-  const c = map.getCenter();
+  const c = pickLatLng();
   const near = store.list.filter(r => r.cat === draft.cat && ["closure","broken"].includes(state(r)) && dist(c, r) < 80)
     .sort((a,b) => dist(c,a) - dist(c,b))[0];
   el.innerHTML = near ? `<div class="muted" style="color:var(--ink)"><strong>Yeh shayad pehle se report hai</strong> (${Math.round(dist(c, near))} meter door, ${ago(near.createdAt)}). Naya banane ki bajaye usi pe vote dein.</div>

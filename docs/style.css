@@ -90,8 +90,8 @@ header{padding:10px 16px 8px;padding-top:calc(10px + env(safe-area-inset-top,0px
 .key i{flex:none;width:22px;height:6px;border-radius:3px;background:var(--closure);opacity:.55}
 .key .x{width:26px;height:26px;font-size:15px}
 /* ---- center picker ---- */
-#picker{position:absolute;inset:0;z-index:1040;pointer-events:none;display:grid;place-items:center}
-#picker .pin{margin-top:-34px}
+#picker{position:absolute;inset:0;z-index:1040;pointer-events:none}
+#picker .pin{position:absolute;left:50%;top:50%}
 #picker p{position:absolute;top:10px;left:16px;right:16px;margin:0;text-align:center;background:var(--ink);color:var(--panel);
   padding:10px 12px;border-radius:10px;font-weight:600;font-size:14px}
 
@@ -158,3 +158,5 @@ textarea{width:100%;box-sizing:border-box;border:1px solid var(--line);backgroun
 .help ol{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:3px}
 .help .x{width:28px;height:28px;font-size:16px}
 .copy{align-self:flex-start}
+.pin.place{background:var(--ink)}
+.field{width:100%;box-sizing:border-box;border:1px solid var(--line);background:var(--panel-2);border-radius:12px;padding:10px 12px;font-size:16px}
