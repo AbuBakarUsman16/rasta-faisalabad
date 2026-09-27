@@ -20,6 +20,11 @@
       <h1>Rasta <span>Faisalabad</span></h1>
       <small id="who">Kya band hai, kya toota hai</small>
     </div>
+    <form class="search" id="search" role="search" autocomplete="off">
+      <label for="q" class="sr">Jagah dhoondein</label>
+      <input id="q" type="search" enterkeyhint="search" placeholder="Jagah dhoondein: D Ground, Susan Road, Allied Hospital…">
+      <button class="btn primary" type="submit">Dhoondein</button>
+    </form>
     <div class="chips" role="toolbar" aria-label="Filter">
       <button class="chip" data-f="all" aria-pressed="true">Sab <span class="n" id="n-all">0</span></button>
       <button class="chip" data-f="closure" aria-pressed="false"><i style="background:var(--closure)"></i>Band / rukawat <span class="n" id="n-closure">0</span></button>
@@ -29,6 +34,7 @@
   </header>
   <div id="map">
     <div class="banner" id="banner" hidden></div>
+    <div class="help" id="geohelp" hidden><div id="geohelp-b"></div><button class="x" id="geohelp-x" aria-label="Band karein">×</button></div>
     <div class="key" id="key"><i></i><span>Orange Line ki tameer wali sarkein (khabron ke mutabiq, andaza)</span><button class="x" id="key-x" aria-label="Note band karein">×</button></div>
     <div id="picker" hidden><p>Naqsha hila kar nishaan ko sahi jagah pe rakhein</p><div class="pin" id="picker-pin"><b>+</b></div></div>
     <div class="fabs" id="fabs">

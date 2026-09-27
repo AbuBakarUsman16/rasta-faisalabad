@@ -161,21 +161,83 @@ $("#zin").onclick = () => map.zoomIn();
 $("#zout").onclick = () => map.zoomOut();
 
 /* ---------- GPS ---------- */
+const FSD_BOUNDS = L.latLngBounds([[31.20,72.80],[31.65,73.40]]);
+const UA = navigator.userAgent;
+const isIOS = /iPhone|iPad|iPod/i.test(UA) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+// WhatsApp/Facebook/Instagram wagera ke andar wala browser aksar location deta hi nahi
+const inApp = /FBAN|FBAV|FB_IAB|Instagram|Line\/|Snapchat|TikTok|musical_ly|; wv\)/i.test(UA);
 let meMarker = null;
-function locate(zoom){
-  return new Promise(res => {
-    if (!navigator.geolocation) { toast("Is browser mein location nahi milti"); return res(null); }
-    navigator.geolocation.getCurrentPosition(p => {
-      const ll = [p.coords.latitude, p.coords.longitude];
-      if (!L.latLngBounds([[31.20,72.80],[31.65,73.40]]).contains(ll)) { toast("Aap Faisalabad se bahar lag rahe hain"); return res(null); }
-      if (meMarker) meMarker.setLatLng(ll); else meMarker = L.circleMarker(ll, {radius:8, color:"#fff", weight:3, fillColor:"#2F6FD6", fillOpacity:1}).addTo(map);
-      map.setView(ll, Math.max(map.getZoom(), zoom || 16));
-      res(ll);
-    }, err => { toast(err.code === 1 ? "Location ki ijazat nahi mili. Naqsha hila kar jagah chunein." : "Location nahi mil saki"); res(null); },
-    {enableHighAccuracy:true, timeout:10000, maximumAge:60000});
-  });
+
+function geoHelp(kind){
+  const b = $("#geohelp-b");
+  const where = isIOS
+    ? `<ol><li>iPhone ki <b>Settings</b> → <b>Privacy &amp; Security</b> → <b>Location Services</b> on karein</li><li>Usi jagah <b>Safari Websites</b> (ya Chrome) → <b>While Using the App</b></li><li>Wapas aa kar page reload karein</li></ol>`
+    : `<ol><li>Upar address bar mein link ke saath wale <b>nishaan (🔒 ya ⚙)</b> pe tap karein</li><li><b>Permissions</b> → <b>Location</b> → <b>Allow</b></li><li>Phone ki <b>Location</b> (upar se neeche swipe) on ho, phir page reload karein</li></ol>`;
+  const msgs = {
+    inapp: `<strong>Yeh page kisi app ke andar khula hai</strong><span class="muted">WhatsApp, Facebook ya Instagram ke andar location nahi milti. Link ko ${isIOS ? "Safari" : "Chrome"} mein kholein: upar ⋮ ya ⋯ pe tap kar ke "Open in browser".</span><button class="btn quiet copy" id="copy-link">Link copy karein</button>`,
+    denied: `<strong>Location ki ijazat band hai</strong><span class="muted">Pehle kabhi "Block" dab gaya tha, is liye browser ab khud nahi poochta. Aise kholein:</span>${where}`,
+    unavailable: `<strong>Location nahi mil saki</strong><span class="muted">Phone ki location (GPS) band lagti hai, ya signal nahi mil raha. Location on kar ke dobara ◎ dabayein.</span>`,
+    insecure: `<strong>Location sirf https link pe chalti hai</strong>`,
+  };
+  b.innerHTML = msgs[kind] + `<span class="muted">Location ke baghair bhi report ho sakti hai: search karein ya naqsha hila kar jagah chunein.</span>`;
+  $("#geohelp").hidden = false; $("#key").hidden = true;
+  const c = $("#copy-link");
+  if (c) c.onclick = () => navigator.clipboard?.writeText(location.href).then(() => toast("Link copy ho gaya"), () => toast(location.href));
+}
+$("#geohelp-x").onclick = () => $("#geohelp").hidden = true;
+
+function getPos(opts){ return new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, opts)); }
+async function locate(zoom, quiet){
+  if (!window.isSecureContext) { geoHelp("insecure"); return null; }
+  if (!navigator.geolocation) { if (!quiet) geoHelp(inApp ? "inapp" : "unavailable"); return null; }
+  try { const p = await navigator.permissions?.query({name:"geolocation"}); if (p && p.state === "denied") { if (!quiet) geoHelp(inApp ? "inapp" : "denied"); return null; } } catch {}
+  if (!quiet) toast("Aap ki jagah dhoond rahe hain…");
+  let pos = null;
+  try { pos = await getPos({enableHighAccuracy:true, timeout:9000, maximumAge:60000}); }
+  catch (e) {
+    if (e.code === 1) { if (!quiet) geoHelp(inApp ? "inapp" : "denied"); return null; }
+    // GPS ne der kar di (aksar andar kamre mein): kam accuracy wali location try karo
+    try { pos = await getPos({enableHighAccuracy:false, timeout:15000, maximumAge:300000}); }
+    catch (e2) { if (!quiet) geoHelp(e2.code === 1 ? "denied" : "unavailable"); return null; }
+  }
+  $("#geohelp").hidden = true;
+  const ll = [pos.coords.latitude, pos.coords.longitude];
+  if (!FSD_BOUNDS.contains(ll)) { toast("Aap Faisalabad se bahar lag rahe hain. Naqsha hila kar jagah chunein."); return null; }
+  if (meMarker) meMarker.setLatLng(ll); else meMarker = L.circleMarker(ll, {radius:8, color:"#fff", weight:3, fillColor:"#2F6FD6", fillOpacity:1, interactive:false}).addTo(map);
+  map.setView(ll, Math.max(map.getZoom(), zoom || 16));
+  return ll;
 }
 $("#locate").onclick = () => locate(16);
+
+/* ---------- search (OpenStreetMap Nominatim, sirf Faisalabad) ---------- */
+let searchMarker = null, lastSearch = 0;
+$("#search").onsubmit = async e => {
+  e.preventDefault();
+  const q = $("#q").value.trim(); if (q.length < 2) return;
+  $("#q").blur();
+  if (Date.now() - lastSearch < 1100) return; // Nominatim ka qaida: 1 search fi second
+  lastSearch = Date.now();
+  const picking = !$("#picker").hidden;
+  const show = html => { if (picking) { const el = $("#dup"); if (el) el.innerHTML = html; } else openSheet("Search", html, "search"); };
+  show(`<div class="muted">"${esc(q)}" dhoond rahe hain…</div>`);
+  try {
+    const url = "https://nominatim.openstreetmap.org/search?" + new URLSearchParams({q, format:"jsonv2", limit:"8", bounded:"1",
+      viewbox:"72.80,31.65,73.40,31.20", countrycodes:"pk", "accept-language":"en"});
+    const res = await fetch(url, {headers:{"Accept":"application/json"}});
+    const list = await res.json();
+    if (!list.length) { show(`<div class="muted">"${esc(q)}" Faisalabad mein nahi mila. Koi qareebi mashhoor jagah, sarak ya colony ka naam likh kar dekhein.</div>`); return; }
+    show(`<div class="list">${list.map((r, i) => { const parts = r.display_name.split(", "); const name = r.name || parts[0];
+      return `<button class="result" data-i="${i}"><strong>${esc(name)}</strong><span>${esc(parts.slice(1, 4).join(", "))}</span></button>`; }).join("")}</div>`);
+    document.querySelectorAll(".result").forEach(b => b.onclick = () => {
+      const r = list[+b.dataset.i], ll = [+r.lat, +r.lon];
+      map.setView(ll, 17);
+      if (!picking) {
+        if (searchMarker) searchMarker.setLatLng(ll); else searchMarker = L.circleMarker(ll, {radius:9, color:"#fff", weight:3, fillColor:"#15201B", fillOpacity:.85, interactive:false}).addTo(map);
+        closeSheet();
+      } else { const el = $("#dup"); if (el) el.innerHTML = ""; checkDup(); }
+    });
+  } catch { show(`<div class="err">Search nahi ho saki. Internet check kar ke dobara koshish karein.</div>`); }
+};
 
 /* ---------- pins aur fehrist ---------- */
 let filter = "all", selected = null, sheetView = null;
@@ -313,14 +375,14 @@ function startPick(useGps){
   $("#picker").hidden = false; $("#fabs").hidden = true;
   const pp = $("#picker-pin"); pp.className = "pin " + draft.kind; pp.firstElementChild.textContent = CAT[draft.cat].g;
   if (map.getZoom() < 15) map.setZoom(15);
-  openSheet("Jagah chunein", `<div class="muted">Naqshe ko ungli se hilayein jab tak nishaan theek us jagah pe na aa jaye.</div>
+  openSheet("Jagah chunein", `<div class="muted">Naqshe ko ungli se hilayein jab tak nishaan theek us jagah pe na aa jaye, ya upar search karein.</div>
     <div id="dup"></div>
     <div class="row"><button class="btn primary" id="here">Yahi jagah hai</button><button class="btn quiet" id="gps">◎ Meri jagah</button><button class="btn quiet" id="back">Wapas</button></div>`, "new");
   $("#back").onclick = () => { endPick(); stepCat(); };
   $("#gps").onclick = () => locate(17);
   $("#here").onclick = () => { const c = map.getCenter(); draft.lat = +c.lat.toFixed(6); draft.lng = +c.lng.toFixed(6); endPick(); stepDetails(); };
   checkDup(); map.on("moveend", checkDup);
-  if (useGps) locate(17); // aksar log wahin khare hote hain jahan masla hai
+  if (useGps) locate(17, true); // aksar log wahin khare hote hain; na mile to chup chaap naqsha/search
 }
 function endPick(){ $("#picker").hidden = true; $("#fabs").hidden = false; map.off("moveend", checkDup); }
 function checkDup(){
